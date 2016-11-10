@@ -1,3 +1,5 @@
+######trial####
+
 # N is the number of iterations; x_0 - starting value for x
 N <- 100000
 x_0 <- 1
