@@ -1,3 +1,4 @@
+rm(list=ls())
 library(MASS)
 library(truncnorm)
 
@@ -10,26 +11,22 @@ simulate_data = function(beta, nr){
   list(Z=Z, V=V)
 }
 
-beta = matrix(c(-2, 7, 3), ncol=1) # a column vector of regression coefficients
-nr = 1000
-test_data = simulate_data(beta, nr)
-
-
 DA_algorithm = function(beta_0, V, Z, niter){
   Y = numeric(length(Z))
   beta = matrix(nrow=length(beta), ncol=niter+1)
   beta[,1] = beta_0
   cov_beta = solve(t(V)%*%V)
   
-  
   for(j in 1:niter){
     
-    for(i in 1:length(Z)){
-      if(Z[i]==0)
-        Y[i] = rtruncnorm(1, b=0, mean=V[i,]%*%beta[,j], sd=1)
-      if(Z[i]==1)
-        Y[i] = rtruncnorm(1, a=0, mean=V[i,]%*%beta[,j], sd=1)
-    }
+    Y[Z==0] = rtruncnorm(sum(Z==0), b=0, mean=V[Z==0,]%*%beta[,j], sd=1)
+    Y[Z==1] = rtruncnorm(sum(Z==1), a=0, mean=V[Z==1,]%*%beta[,j], sd=1)
+    # for(i in 1:length(Z)){
+    #   if(Z[i]==0)
+    #     Y[i] = rtruncnorm(1, b=0, mean=V[i,]%*%beta[,j], sd=1)
+    #   if(Z[i]==1)
+    #     Y[i] = rtruncnorm(1, a=0, mean=V[i,]%*%beta[,j], sd=1)
+    # }
     #print(V[i,]%*%beta[,j])
     
     beta_hat = cov_beta%*%t(V)%*%Y
@@ -38,14 +35,9 @@ DA_algorithm = function(beta_0, V, Z, niter){
     if(j%%10000==0)
       print(beta[,j])
   }
-
+  
   return(beta)
 }
-
-beta_0 = matrix(c(1,1,1), ncol=1)
-niter=100000
-beta_DA = DA_algorithm(beta_0, V=test_data[[2]], Z = test_data[[1]], niter)
-
 
 diagnostics = function(true_beta, beta){
   n = ncol(beta)
@@ -86,9 +78,6 @@ diagnostics = function(true_beta, beta){
   print(result)
 }
 
-diagnostics(c(-2,7,3), beta_DA)
-
-
 PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta){
   m = length(Z)
   Y = numeric(m)
@@ -103,17 +92,20 @@ PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta){
   v = numeric(1)
   Y_tilda = numeric(m)
   
+  all_u = rgamma(niter, alpha, delta)
   for(j in 1:niter){
     #step 1
-    for(i in 1:m){
-      if(Z[i]==0)
-        Y[i] = rtruncnorm(1, b=0, mean=V[i,]%*%beta[,j], sd=1)
-      if(Z[i]==1)
-        Y[i] = rtruncnorm(1, a=0, mean=V[i,]%*%beta[,j], sd=1)
-    }
-    
+    Y[Z==0] = rtruncnorm(sum(Z==0), b=0, mean=V[Z==0,]%*%beta[,j], sd=1)
+    Y[Z==1] = rtruncnorm(sum(Z==1), a=0, mean=V[Z==1,]%*%beta[,j], sd=1)
+    # for(i in 1:m){
+    #   if(Z[i]==0)
+    #     Y[i] = rtruncnorm(1, b=0, mean=V[i,]%*%beta[,j], sd=1)
+    #   if(Z[i]==1)
+    #     Y[i] = rtruncnorm(1, a=0, mean=V[i,]%*%beta[,j], sd=1)
+    # }
+
     #step 2
-    u = rgamma(1, alpha, delta)
+    u = all_u[j]
     Y_tilda = Y / sqrt(u)
     v = rgamma(1, (m/2 + alpha), (t(Y_tilda)%*%(I-H)%*%Y_tilda)/2 + delta)
     
@@ -130,10 +122,24 @@ PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta){
   return(beta)
 }
 
+#Generate test data
+set.seed(13)
+beta = matrix(c(-2, 7, 3), ncol=1) # a column vector of regression coefficients
+nr = 1000
+test_data = simulate_data(beta, nr)
+
+#DA algorithm
 beta_0 = matrix(c(1,1,1), ncol=1)
-niter=100000
+niter=1000
+beta_DA = DA_algorithm(beta_0, V=test_data[[2]], Z = test_data[[1]], niter)
+#Diagnostic DA algorithm
+diagnostics(c(-2,7,3), beta_DA)
+
+#PX-DA Algorithm
+beta_0 = matrix(c(1,1,1), ncol=1)
+niter=1000
 alpha = 5
 delta = 1
 beta_PXDA = PXDA_algorithm(beta_0, V=test_data[[2]], Z = test_data[[1]], niter, alpha, delta)
-
+#Diagnostic PX-DA Algorithm
 diagnostics(c(-2,7,3), beta_PXDA)
