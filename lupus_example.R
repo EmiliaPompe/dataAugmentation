@@ -7,6 +7,15 @@ data("lupus")
 probit_freq <- glm(formula = response ~ const+x1+x2+0, data = as.data.frame(lupus), family=binomial(link="probit"))
 mle_est <- probit_freq$coefficients
 
+#Test likelihood
+probit_loglikelihood(mle_est, V=lupus[,2:4], Z = lupus[,1])
+
+#M-H algorithm
+beta_0 = matrix(mle_est, ncol=1)
+niter=100000
+beta_MH <- MH_algorithm(beta_0, V=lupus[,2:4], Z = lupus[,1], niter)
+diagnostics(mle_est, beta_MH)
+
 #DA algorithm
 beta_0 = matrix(mle_est, ncol=1)
 niter=1000

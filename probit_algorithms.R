@@ -120,3 +120,43 @@ PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta){
   
   return(beta)
 }
+
+probit_loglikelihood <- function(beta, V, Z) {
+  #beta must be a column vector
+  # 
+  # 
+  # 
+  # result <- 0
+  # for(i in 1:length(Z)) {
+  #   if(Z[i] == 1) {
+  #     aux <- log(pnorm(V[i,]%*%beta_prop))-log(pnorm(V[i,]%*%beta))
+  #   } else {
+  #     aux <- log((1-pnorm(V[i,]%*%beta_prop)))-log((1-pnorm(V[i,]%*%beta)))
+  #   }
+  #   if(is.nan(aux))
+  #     aux <- 0
+  #   result <- result + aux
+  # }
+  
+  aux <- pnorm(V%*%beta)
+  result <- sum(log(aux[Z==1]))+sum(log(1-aux[Z==0]))
+    
+    
+  return(result)
+}
+
+MH_algorithm <- function(beta_0, V, Z, niter) {
+  beta = matrix(nrow=length(beta_0), ncol=niter+1)
+  beta[,1] = beta_0
+  for(j in 1:niter) {
+    beta_prop <- mvrnorm(1, beta[,j], 0.1*diag(length(beta_0)))
+    alpha <- exp(probit_loglikelihood(beta_prop,V,Z)/probit_loglikelihood(beta[,j],V,Z))
+    u <- runif(1,0,1)
+    if(is.nan(alpha) == FALSE && u < alpha) {
+      beta[,j+1] <- beta_prop
+    } else {
+      beta[,j+1] <- beta[,j]
+    }
+  }
+  return(beta)
+}

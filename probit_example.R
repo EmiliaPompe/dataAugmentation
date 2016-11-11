@@ -4,7 +4,7 @@ source("probit_algorithms.R")
 #Generate test data
 set.seed(13)
 beta = matrix(c(-2, 7, 3), ncol=1) # a column vector of regression coefficients
-nr = 55
+nr = 1000
 test_data = simulate_data(beta, nr)
 
 #DA algorithm
@@ -26,3 +26,9 @@ diagnostics(c(-2,7,3), beta_PXDA)
 #Frequentist approach
 mydata <- data.frame(test_data$V, test_data$Z)
 probit_freq <- glm(formula = test_data.Z ~ X1+X2+X3+0, data = mydata, family=binomial(link="probit"))
+
+#M-H Algorithm
+beta_0 = matrix(c(-2,8,3), ncol=1)
+niter=10000
+beta_MH <- MH_algorithm(beta_0,test_data[[2]],test_data[[1]],niter)
+diagnostics(c(-2,7,3), beta_MH)
