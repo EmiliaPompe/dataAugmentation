@@ -18,13 +18,25 @@ diagnostics(mle_est, beta_MH)
 
 #DA algorithm
 beta_0 = matrix(mle_est, ncol=1)
-niter=1000
-beta_DA = DA_algorithm(beta_0, V=lupus[,2:4], Z = lupus[,1], niter)
+niter=20000
+set.seed(13)
+res_DA =  DA_algorithm(beta_0, V=lupus[,2:4], Z = lupus[,1], niter)
+beta_DA = res_DA$beta
 diagnostics(mle_est, beta_DA)
 par(mfrow=c(1,1))
 plot(beta_DA[2,1:(niter-1)], beta_DA[2,2:niter])
 acf(beta_DA[2,], lag.max = 100)
 
+#STEP-DA Algorithm
+C <- apply(beta_DA[,2:ncol(beta_DA)], 1, quantile, probs=c(.49,.51))[1,]
+D <- apply(beta_DA[,2:ncol(beta_DA)], 1, quantile, probs=c(.49,.51))[2,]
+beta_0 = matrix(mle_est, ncol=1)
+niter=1000000
+y_star <- apply(res_DA$Y, 2, mean)
+set.seed(17)
+step_chain <- DA_step_algorithm(beta_0, V=lupus[,2:4], Z = lupus[,1],
+                                niter, C, D, y_star, VERBOSE = FALSE)
+apply(step_chain$beta, 1, summary)
 
 #PX-DA algorithm
 beta_0 = matrix(mle_est, ncol=1)
