@@ -1,51 +1,56 @@
-#THIS IS COMPLETELY RUBBISH! 
-#DO NOT USE
-#YOU ARE WARNED!
-
 rm(list=ls())
 
-qtrunc <- function(p, spec, a = -Inf, b = Inf, ...) {
-  tt <- p
-  G <- get(paste("p", spec, sep = ""), mode = "function")
-  Gin <- get(paste("q", spec, sep = ""), mode = "function")
-  tt <- Gin(G(a, ...) + p*(G(b, ...) - G(a, ...)), ...)
-  return(tt)
-}
-rtrunc <- function(n, spec, a = -Inf, b = Inf, ...) {
-  x <- u <- runif(n, min = 0, max = 1)
-  x <- qtrunc(u, spec, a = a, b = b,...)
-  return(x)
-}
-
-DA_split_algorithm <- function(x_0,niter,d1,d2,x_star) {
-  y <- numeric(length = niter)
-  x <- numeric(length = niter+1)
-  delta <- numeric(length = niter)
-  x[1] <- x_0
-  for (i in 1:niter) {
-    # conditional distribution of Y given X
-    y[i] <- rgamma(1, shape = 5/2, scale = 1/(x_star^2/2+2))
-    #y[i] <- rtrunc(1, "gamma", d1, d2, shape=5/2, scale=1/(x_star^2/2+2))
-    # conditional distribution of X given Y
-    x[i+1] <- rnorm(1, 0, sqrt(y[i]^{-1}))
-    #draw delta
-    if(y[i] > d2 || y[i] < d1) {
-      delta[i] = 0
-    } else {
-      if(x[i]^2 > x_star^2) {
-        prob <- exp((x[i]^2-x_star^2)*(y[i]/2-(d2/2)))
-      } else {
-        prob <- exp((x[i]^2-x_star^2)*(y[i]/2-(d1/2)))
-      }
-      delta[i] <- rbinom(1,1,prob = prob)
-    }
+DA_split_algorithm_tstudent = function(x_0, niter, d1, d2, x_star, VERBOSE = FALSE){
+  #C represent lower bound for the p-dimensional rectangle ; D upper bounds
+  if(length(C) != length(D) || length(C) != length(x_0)) {
+    stop("C,D and beta must have same length!")
   }
-  return(list(X=x,Y=y, delta=delta))
+  if(length(x_star) != length(x_0)) {
+    stop("x_star and x_0 must have same length!")
+  }
+  Y = numeric(niter)
+  X = numeric(niter+1)
+  X[1] = x_0
+  delta = numeric(niter)
+  num_in = 0
+  all_eta = numeric(0)
+  for(j in 1:niter){
+    #Step 1
+    Y[j] <- rgamma(1, shape = 5/2, scale = 1/(X[j]^2/2+2))
+    #Step 2
+    X[j+1] <- rnorm(1, 0, sqrt(Y[j]^{-1}))
+    #Step 3: compute delta
+    if(all(Y[j] >= d1) && (Y[j] <= d2)) {
+      num_in = num_in+1
+      #Compute probability eta
+      if(X[j]^2 > x_star^2) {
+        eta <- exp((X[j]^2-x_star^2)*(Y[j]/2-d2/2))
+      } else {
+        eta <- exp((X[j]^2-x_star^2)*(Y[j]/2-d1/2))
+      }
+      eta <- min(c(1,eta))
+      if(VERBOSE)
+        cat("INSIDE! j =",j,"eta =",eta,"\n")
+      delta[j] = rbinom(1,1,eta)
+      all_eta <- c(all_eta,eta)
+    } else {
+      delta[j] = 0
+    }
+    #Print progress
+    if(j%%floor(niter/10)==0)
+      cat(j/niter*100,"%\n",sep="")
+  }
+  cat("Number of times it was in: ",num_in,"(",num_in/niter*100,"%)\n",sep="")
+  cat("Probability eta. Mean = ",mean(all_eta),", Min = ",min(all_eta),
+      ", Max = ",max(all_eta),"\n",sep="")
+  cat("Number of regenerations = ",sum(delta))
+  return(list(X=X,Y=Y,delta=delta))
 }
 
-niter <- 1000
-res <- DA_split_algorithm(1,niter,0.5,2,0)
-hist(res$X[1:niter], 100, col='yellow', las=1, border=T, freq=FALSE, xlim=c(c(-10, 10)))
+niter <- 100000
+set.seed(17)
+res <- DA_split_algorithm_tstudent(1,niter,0.5,2,0,VERBOSE = FALSE)
+hist(res$X[1:niter], 100, col='yellow', las=1, border=T, freq=FALSE, xlim=c(c(-10, 10)), breaks = 200)
 # comparing with the t distribution with 4 degrees of freedom
-hist(rt(niter, df=4), 100, col='red', las=1, border=F, freq=FALSE,  xlim=c(-10, 10), add=TRUE)
+hist(rt(niter, df=4), 100, col='red', las=1, border=F, freq=FALSE,  xlim=c(-10, 10), add=TRUE, breaks=200)
 hist(res$Y[1:niter], 100, col='yellow', las=1, border=T, freq=FALSE, xlim=c(c(-10, 10)))
