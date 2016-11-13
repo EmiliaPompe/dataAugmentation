@@ -30,6 +30,18 @@ acf(beta_DA[2,], lag.max = 100)
 #STEP-DA Algorithm
 C <- apply(beta_DA[,2:ncol(beta_DA)], 1, quantile, probs=c(.49,.51))[1,]
 D <- apply(beta_DA[,2:ncol(beta_DA)], 1, quantile, probs=c(.49,.51))[2,]
+
+#the interval that they used in the paper
+#it is wider than the one Giulio proposes above so it gives better results
+C_prim = apply(beta_DA[,2:ncol(beta_DA)], 1, mean) - 0.09*apply(beta_DA[,2:ncol(beta_DA)], 1, sd)
+D_prim = apply(beta_DA[,2:ncol(beta_DA)], 1, mean) + 0.09*apply(beta_DA[,2:ncol(beta_DA)], 1, sd)
+
+step_chain_prim <- DA_step_algorithm(beta_0, V=lupus[,2:4], Z = lupus[,1],
+                                     niter, C_prim, D_prim, y_star, VERBOSE = FALSE)
+apply(step_chain_prim$beta, 1, summary)
+
+
+
 beta_0 = matrix(mle_est, ncol=1)
 niter=1000000
 y_star <- apply(res_DA$Y, 2, mean)
@@ -37,6 +49,12 @@ set.seed(17)
 step_chain <- DA_step_algorithm(beta_0, V=lupus[,2:4], Z = lupus[,1],
                                 niter, C, D, y_star, VERBOSE = FALSE)
 apply(step_chain$beta, 1, summary)
+
+
+#standard error sigma/sqrt(R)
+DA_sderror(step_chain$beta, step_chain$delta, 100)
+
+DA_sderror(step_chain_prim$beta, step_chain_prim$delta, 100)
 
 #PX-DA algorithm
 beta_0 = matrix(mle_est, ncol=1)

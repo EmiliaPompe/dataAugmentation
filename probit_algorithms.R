@@ -137,6 +137,55 @@ DA_step_algorithm = function(beta_0, V, Z, niter, C, D, y_star, VERBOSE = FALSE)
   return(list(beta=beta,Y=Y,delta=delta))
 }
 
+DA_sderror = function(beta, delta, R){
+  
+  niter = length(delta)
+  nvar = nrow(beta) #number of variables
+  index = numeric() #index to track regeneration times
+  tau = numeric(R+1) # regeneration times
+  
+  S_t = matrix(nrow=nvar, ncol=R) #evaluated function of interest
+  N_t = numeric(R) #length of tours
+  
+  N_bar = numeric(1)
+  S_bar = numeric(nvar)
+  
+  estimator = numeric(nvar)
+  gamma_sq = numeric(nvar) #desired variance 
+  
+  
+  for(i in 1:niter){
+    if(delta[i]!= 0)
+      index = c(index,i+1)
+  }
+  if(length(index) < (R+1)){
+    stop("Number of regenerations is lower than R+1")
+  }
+  #keep only R regeneration times
+  tau[1:(R+1)] = index[1:(R+1)]
+  print(tau)
+  for(i in 1:R){
+    N_t[i] = tau[i+1] - tau[i] #length of tours
+    seq = tau[i]:(tau[i+1]-1) #sequence for the sum below
+    #print(seq)
+    for(j in 1:nvar){
+      S_t[j,i] = sum(beta[j,seq])
+    }
+  }
+  N_bar = sum(N_t)/R
+  
+  for(j in 1:nvar){
+    S_bar[j] = sum(S_t[j,])/R
+    estimator[j] = S_bar[j]/N_bar
+    print(estimator[j])
+    gamma_sq[j] = sum((S_t[j,] - estimator[j]*N_t)^2) / (R * (N_bar^2)) 
+  }
+  
+  result = gamma_sq/sqrt(R)
+  return(result)
+  
+}
+
 diagnostics = function(true_beta, beta){
   n = ncol(beta)
   new_beta = beta[,floor(n*0.1):n]
