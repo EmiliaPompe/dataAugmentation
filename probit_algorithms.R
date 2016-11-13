@@ -181,7 +181,7 @@ DA_sderror = function(beta, delta, R){
     gamma_sq[j] = sum((S_t[j,] - estimator[j]*N_t)^2) / (R * (N_bar^2)) 
   }
   
-  result = gamma_sq/sqrt(R)
+  result = sqrt(gamma_sq)/sqrt(R)
   return(result)
   
 }
