@@ -76,7 +76,96 @@ DA_algorithm = function(beta_0, V, Z, niter){
   return(list(beta=beta,Y=Y))
 }
 
-DA_step_algorithm = function(beta_0, V, Z, niter, C, D, y_star, VERBOSE = FALSE){
+DA_split_algorithm = function(beta_0, V, Z, niter=NULL, C, D, y_star,
+                              R=NULL, error=NULL, VERBOSE = FALSE){
+  if(is.null(R) && is.null(niter) && is.null(error)){
+    stop("Define a stopping condition!")
+  }
+  if(length(c(R,niter,error)) != 1){
+    stop("Define only one stopping condition!")
+  } 
+  #C represent lower bound for the p-dimensional rectangle ; D upper bounds
+  if(length(C) != length(D) || length(C) != length(beta_0)) {
+    stop("C,D and beta must have the sime length!")
+  }
+  if(dim(V)[2] != length(beta_0)) {
+    stop("Dimension of V and beta are not compatible")
+  }
+  if(dim(V)[1] != length(Z)) {
+    stop("Dimension of V and Z are not compatible")
+  }
+  if(length(y_star) != length(Z)) {
+    stop("Dimension of y_star and Z are not compatible")
+  }
+  BIGNUMBER = 1500000
+  Y = matrix(nrow=BIGNUMBER, ncol=length(Z))
+  beta = matrix(nrow=length(beta_0), ncol=BIGNUMBER+1)
+  beta[,1] = beta_0
+  cov_beta = solve(t(V)%*%V)
+  delta = numeric(BIGNUMBER)
+  num_in = 0
+  all_eta = numeric(0)
+  j=1
+  while(TRUE){
+    if(j > BIGNUMBER) {
+      stop("Stopping condition not reached in 150000 iterations")
+    }
+    #Step 1
+    Y[j,Z==0] = rtruncnorm(sum(Z==0), b=0, mean=V[Z==0,]%*%beta[,j], sd=1)
+    Y[j,Z==1] = rtruncnorm(sum(Z==1), a=0, mean=V[Z==1,]%*%beta[,j], sd=1)
+    #Step 2
+    beta_hat = cov_beta%*%t(V)%*%Y[j,]
+    beta[,j+1] = mvrnorm(1, beta_hat, cov_beta)
+    #Step 3: compute delta
+    if(all(beta[,j+1] >= C) && (beta[,j+1] <= D)) {
+      num_in = num_in+1
+      #Compute probability eta
+      t_vec = t(Y[j,]-y_star)%*%V
+      aux_sum = 0
+      for (i in 1:length(beta_0)) {
+        if(t_vec[i]  >= 0) {
+          aux_sum <- aux_sum + C[i]*t_vec[i]
+        } else {
+          aux_sum <- aux_sum + D[i]*t_vec[i]
+        }
+        aux_sum <- aux_sum - t_vec[i]*beta[i,j+1]
+      }
+      eta <- min(c(1,exp(aux_sum)))
+      if(VERBOSE)
+        cat("INSIDE! j =",j,"eta =",eta,"\n")
+      delta[j] = rbinom(1,1,eta)
+      all_eta <- c(all_eta,eta)
+      if(is.null(R) == FALSE && delta[j] == 1) {
+        cat("New regeneration! Total number: ",sum(delta)," j = ",j,"\n",sep="")
+      }
+    } else {
+      delta[j] = 0
+    }
+    #Print progress
+    if(is.null(niter) == FALSE && j%%floor(niter/10)==0)
+      cat(j/niter*100,"%\n",sep="")
+    j=j+1
+    if(is.null(niter)==FALSE && j > niter){
+      break
+    }
+    if(is.null(R)==FALSE && sum(delta)==R+1){
+      break
+    }
+    if(is.null(error)==FALSE && all(DA_sderror(beta, delta, sum(delta)) < error)){
+      break
+    }
+  }
+  # cat("Number of times it was in: ",num_in,"(",num_in/niter*100,"%)\n",sep="")
+  # cat("Probability eta. Mean = ",mean(all_eta),", Min = ",min(all_eta),
+  #     ", Max = ",max(all_eta),"\n",sep="")
+  # cat("Number of regenerations = ",sum(delta))
+  beta <- beta[,1:j+1]
+  Y <- Y[1:j,]
+  delta <- delta[1:j]
+  return(list(beta=beta,Y=Y,delta=delta, j=j))
+}
+
+DA_split_algorithm_original = function(beta_0, V, Z, niter, C, D, y_star, VERBOSE = FALSE){
   #C represent lower bound for the p-dimensional rectangle ; D upper bounds
   if(length(C) != length(D) || length(C) != length(beta_0)) {
     stop("C,D and beta must have the sime length!")
@@ -136,6 +225,7 @@ DA_step_algorithm = function(beta_0, V, Z, niter, C, D, y_star, VERBOSE = FALSE)
   cat("Number of regenerations = ",sum(delta))
   return(list(beta=beta,Y=Y,delta=delta))
 }
+
 
 DA_sderror = function(beta, delta, R){
   
@@ -269,42 +359,17 @@ PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta){
   return(beta)
 }
 
-probit_loglikelihood <- function(beta, V, Z) {
-  #beta must be a column vector
-  # 
-  # 
-  # 
-  # result <- 0
-  # for(i in 1:length(Z)) {
-  #   if(Z[i] == 1) {
-  #     aux <- log(pnorm(V[i,]%*%beta_prop))-log(pnorm(V[i,]%*%beta))
-  #   } else {
-  #     aux <- log((1-pnorm(V[i,]%*%beta_prop)))-log((1-pnorm(V[i,]%*%beta)))
-  #   }
-  #   if(is.nan(aux))
-  #     aux <- 0
-  #   result <- result + aux
-  # }
-  
-  aux <- pnorm(V%*%beta)
-  result <- sum(log(aux[Z==1]))+sum(log(1-aux[Z==0]))
-    
-    
-  return(result)
+Brier_score = function(beta_DA, V, Z){
+  n = ncol(beta_DA)-1
+  beta_hat = apply(beta_DA[,0.1*n:(n+1)], 1, mean)
+  prob = pnorm(V%*%beta_hat)
+  return(mean((prob-Z)^2))
 }
 
-MH_algorithm <- function(beta_0, V, Z, niter) {
-  beta = matrix(nrow=length(beta_0), ncol=niter+1)
-  beta[,1] = beta_0
-  for(j in 1:niter) {
-    beta_prop <- mvrnorm(1, beta[,j], 0.1*diag(length(beta_0)))
-    alpha <- exp(probit_loglikelihood(beta_prop,V,Z)/probit_loglikelihood(beta[,j],V,Z))
-    u <- runif(1,0,1)
-    if(is.nan(alpha) == FALSE && u < alpha) {
-      beta[,j+1] <- beta_prop
-    } else {
-      beta[,j+1] <- beta[,j]
-    }
-  }
-  return(beta)
+
+run_times = function(beta_0, V, Z, niter, alpha, delta){
+  run_time_DA = system.time({beta_DA = DA_algorithm(beta_0, V, Z, niter)})[3]
+  run_time_PXDA = system.time({beta_PXDA = PXDA_algorithm(beta_0, V, Z, niter, alpha, delta)})[3]
+  
+  return(list(run_time_DA=run_time_DA, run_time_PXDA = run_time_PXDA))
 }
