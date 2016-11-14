@@ -60,31 +60,41 @@ split_chain_sim <- DA_split_algorithm_original(beta_0, test_data$V, test_data$Z,
 apply(split_chain_sim$beta, 1, summary)
 
 
+###Run times
+set.seed(17)
+size_observation <- c(200,500,1000,2000)
+size_beta <- c(3,10,50,100)
 
-###run times####
+list_run_times <- vector("list", length = length(size_observation)*length(size_beta))
+counter_list <- 1
 
-all_iters = seq(10000,100000, by=10000)
-run_times_matrix = matrix(NA,nrow=length(all_iters), ncol=2)
-counter = 1
-
-set.seed(13)
-beta = matrix(c(-2, 7, 3), ncol=1) # a column vector of regression coefficients
-nr = 1000
-test_data = simulate_data2(beta, nr, intercept=FALSE) #intercept = TRUE leads to "weird" results!
-V = test_data$V
-Z = test_data$Z
-alpha = 5
-delta = 1
-
-for(i in all_iters){
-  aux = run_times(beta_0, V, Z, i, alpha, delta)
-  run_times_matrix[counter,] = c(as.numeric(aux$run_time_DA), as.numeric(aux$run_time_PXDA))
-  counter=counter+1
+for (nr in size_observation) {
+  for(nr_beta in size_beta) {
+    beta = matrix(runif(nr_beta,min=-15, max=15), ncol=1)
+    test_data = simulate_data2(beta, nr, intercept=FALSE) #intercept = TRUE leads to "weird" results!
+    V = test_data$V
+    Z = test_data$Z
+    alpha = 5
+    delta = 1
+    niter <- 10000
+    beta_0 = matrix(rep(1, nr_beta), ncol=1)
+    time_snapshot <- seq(niter/100,niter,by=niter/100)
+    chain_DA <- DA_algorithm(beta_0, V, Z, niter, time_snapshot)
+    chain_PXDA <- PXDA_algorithm(beta_0, V, Z, niter, alpha, delta, time_snapshot)
+    
+    run_times_matrix = matrix(NA,nrow=length(time_snapshot), ncol=2)
+    run_times_matrix[,1] <- chain_DA$time_elapsed
+    run_times_matrix[,2] <- chain_PXDA$time_elapsed
+    colnames(run_times_matrix) <- c("DA", "PX-DA")
+    rownames(run_times_matrix) <- time_snapshot
+    
+    list_run_times[[counter_list]] <- list(nr=nr, size_beta=nr_beta, beta=beta,
+                                           run_time_DA=chain_DA$time_elapsed, run_time_PXDA=chain_PXDA$time_elapsed,
+                                           beta_DA = chain_DA$beta, beta_PXDA=chain_PXDA$beta)
+    cat(counter_list,"/",length(size_observation)*length(size_beta),"\n",sep = "")
+    counter_list <- counter_list+1
+    
+  }
 }
 
-plot(all_iters, log(run_times_matrix[,1], base=10), col="red", ylim=c(0, max(log(run_times_matrix, base=10)))) #DA
-points(all_iters, log(run_times_matrix[,2], base=10)) #PXDA
-#about 15 times slower for PXDA
-
-
-save(run_times_matrix, file="/data/tinamou/kindalov/Project3/dataAugmentation/run_times.RData")
+save(list_run_times, file="./all_run_times.RData")

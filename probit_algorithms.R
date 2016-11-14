@@ -1,5 +1,6 @@
 library(MASS)
 library(truncnorm)
+library(tictoc)
 
 simulate_data = function(beta, nr, intercept=FALSE){
   if(intercept) {
@@ -47,7 +48,13 @@ simulate_data2= function(beta, nr, intercept=TRUE) {
   list(Z=Z, V=V, prob=final_prob)
 }
 
-DA_algorithm = function(beta_0, V, Z, niter){
+DA_algorithm = function(beta_0, V, Z, niter, time_snapshot=NULL){
+  if(is.null(time_snapshot) == FALSE) {
+    time_elapsed = numeric(length(time_snapshot))
+    counter_time = 1
+  }
+  tic.clear()
+  tic()
   Y = matrix(nrow=niter, ncol=length(Z))
   beta = matrix(nrow=length(beta_0), ncol=niter+1)
   beta[,1] = beta_0
@@ -71,9 +78,21 @@ DA_algorithm = function(beta_0, V, Z, niter){
     #Print progress
     if(j%%floor(niter/10)==0)
       cat(j/niter*100,"%\n",sep="")
+    if(j %in% time_snapshot) {
+      aux <- toc(quiet = TRUE)
+      time_elapsed[counter_time] <- as.numeric(aux$toc-aux$tic)
+      counter_time = counter_time+1
+      tic.clear()
+      tic()
+    }
   }
-  
-  return(list(beta=beta,Y=Y))
+  toc(quiet=TRUE)
+  time_elapsed <- cumsum(time_elapsed)
+  if(is.null(time_snapshot)) {
+    return(list(beta=beta,Y=Y))
+  } else {
+    return(list(beta=beta,Y=Y,time_elapsed=time_elapsed))
+  }
 }
 
 DA_split_algorithm = function(beta_0, V, Z, niter=NULL, C, D, y_star,
@@ -315,7 +334,13 @@ diagnostics = function(true_beta, beta){
   print(result)
 }
 
-PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta){
+PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta, time_snapshot=NULL){
+  if(is.null(time_snapshot) == FALSE) {
+    time_elapsed = numeric(length(time_snapshot))
+    counter_time = 1
+  }
+  tic.clear()
+  tic()
   m = length(Z)
   Y = numeric(m)
   beta = matrix(nrow=length(beta_0), ncol=niter+1)
@@ -354,9 +379,21 @@ PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta){
     beta[,j+1] = mvrnorm(1, beta_hat, cov_beta)
     if(j%%floor(niter/10)==0)
       cat(j/niter*100,"%\n",sep="")
+    if(j %in% time_snapshot) {
+      aux <- toc(quiet = TRUE)
+      time_elapsed[counter_time] <- as.numeric(aux$toc-aux$tic)
+      counter_time = counter_time+1
+      tic.clear()
+      tic()
+    }
   }
-  
-  return(beta)
+  toc(quiet=TRUE)
+  time_elapsed <- cumsum(time_elapsed)
+  if(is.null(time_snapshot)) {
+    return(beta)
+  } else {
+    return(list(beta=beta,time_elapsed=time_elapsed))
+  }
 }
 
 Brier_score = function(beta_DA, V, Z){
