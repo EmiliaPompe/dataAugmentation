@@ -6,7 +6,7 @@ source("probit_algorithms.R")
 set.seed(13)
 beta = matrix(c(-2, 7, 3), ncol=1) # a column vector of regression coefficients
 nr = 1000
-test_data = simulate_data2(beta, nr, intercept=FALSE) #intercept = TRUE leads to "weird" results!
+test_data = simulate_data2(beta, nr, intercept=FALSE)
 
 #DA algorithm
 beta_0 = matrix(c(1,1,1), ncol=1)
@@ -76,9 +76,9 @@ for (nr in size_observation) {
     Z = test_data$Z
     alpha = 5
     delta = 1
-    niter <- 10000
+    niter <- 100000
     beta_0 = matrix(rep(1, nr_beta), ncol=1)
-    time_snapshot <- seq(niter/100,niter,by=niter/100)
+    time_snapshot <- seq(niter/1000,niter,by=niter/1000)
     chain_DA <- DA_algorithm(beta_0, V, Z, niter, time_snapshot)
     chain_PXDA <- PXDA_algorithm(beta_0, V, Z, niter, alpha, delta, time_snapshot)
     
@@ -89,9 +89,9 @@ for (nr in size_observation) {
     rownames(run_times_matrix) <- time_snapshot
     
     list_run_times[[counter_list]] <- list(nr=nr, size_beta=nr_beta, beta=beta,
-                                           run_time_DA=chain_DA$time_elapsed, run_time_PXDA=chain_PXDA$time_elapsed,
-                                           beta_DA = chain_DA$beta, beta_PXDA=chain_PXDA$beta)
+                                           run_time_DA=chain_DA$time_elapsed, run_time_PXDA=chain_PXDA$time_elapsed)
     cat(counter_list,"/",length(size_observation)*length(size_beta),"\n",sep = "")
+    save(list_run_times, file=paste("./all_run_times_",counter_list,".RData", sep = ""))
     counter_list <- counter_list+1
     
   }

@@ -20,7 +20,7 @@ simulate_data2= function(beta, nr, intercept=TRUE) {
   if(intercept) {
     V[,1] = 1
   }
-  prob <- runif(nr,0,1)
+  prob <- qnorm(runif(nr,0,1))
   #Create observations that generates such result (in a probably stupid way)
   for (i in 1:nr) {
     if(intercept == FALSE) {
@@ -40,7 +40,7 @@ simulate_data2= function(beta, nr, intercept=TRUE) {
     }
   }
   #Sample Z
-  final_prob <- V%*%beta
+  final_prob <- pnorm(V%*%beta)
   Z = numeric(nr)
   for(i in 1:nr) {
     Z[i] = rbinom(1,1,final_prob[i])
@@ -78,7 +78,7 @@ DA_algorithm = function(beta_0, V, Z, niter, time_snapshot=NULL){
     #Print progress
     if(j%%floor(niter/10)==0)
       cat(j/niter*100,"%\n",sep="")
-    if(j %in% time_snapshot) {
+    if(is.null(time_snapshot) == FALSE && j %in% time_snapshot) {
       aux <- toc(quiet = TRUE)
       time_elapsed[counter_time] <- as.numeric(aux$toc-aux$tic)
       counter_time = counter_time+1
@@ -86,11 +86,11 @@ DA_algorithm = function(beta_0, V, Z, niter, time_snapshot=NULL){
       tic()
     }
   }
-  toc(quiet=TRUE)
-  time_elapsed <- cumsum(time_elapsed)
   if(is.null(time_snapshot)) {
     return(list(beta=beta,Y=Y))
   } else {
+    toc(quiet=TRUE)
+    time_elapsed <- cumsum(time_elapsed)
     return(list(beta=beta,Y=Y,time_elapsed=time_elapsed))
   }
 }
@@ -379,7 +379,7 @@ PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta, time_snapshot=NULL)
     beta[,j+1] = mvrnorm(1, beta_hat, cov_beta)
     if(j%%floor(niter/10)==0)
       cat(j/niter*100,"%\n",sep="")
-    if(j %in% time_snapshot) {
+    if(is.null(time_snapshot) == FALSE && j %in% time_snapshot) {
       aux <- toc(quiet = TRUE)
       time_elapsed[counter_time] <- as.numeric(aux$toc-aux$tic)
       counter_time = counter_time+1
@@ -387,11 +387,11 @@ PXDA_algorithm = function(beta_0, V, Z, niter, alpha, delta, time_snapshot=NULL)
       tic()
     }
   }
-  toc(quiet=TRUE)
-  time_elapsed <- cumsum(time_elapsed)
   if(is.null(time_snapshot)) {
     return(beta)
   } else {
+    toc(quiet=TRUE)
+    time_elapsed <- cumsum(time_elapsed)
     return(list(beta=beta,time_elapsed=time_elapsed))
   }
 }
