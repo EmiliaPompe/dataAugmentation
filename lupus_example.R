@@ -82,3 +82,28 @@ for(i in 1:100){
 }
 plot(seq(100,10000,by=100), Brier_DA, col="red", type="l")
 lines(seq(100,10000,by=100), Brier_PXDA)
+
+#Density plots
+niter = dim(beta_DA)[2]
+plot(density(beta_DA[1,floor(0.1*niter):niter]))
+plot(density(beta_DA[2,floor(0.1*niter):niter]))
+plot(density(beta_DA[3,floor(0.1*niter):niter]))
+
+plot(density(beta_PXDA_12[1,floor(0.1*niter):niter]))
+plot(density(beta_PXDA_12[2,floor(0.1*niter):niter]))
+plot(density(beta_PXDA_12[3,floor(0.1*niter):niter]))
+
+
+require(reshape)
+require(ggplot2)
+require(gridExtra)
+niter <- 100001
+plot_list <- vector("list", length = 3)
+for(i in 1:3) {
+  df = data.frame(method = c("DA","PX-DA 12"),
+                  beta_DA = beta_DA[i,floor(0.1*niter):niter],
+                  beta_PXDA_12 = beta_PXDA_12[i,floor(0.1*niter):niter])
+  dfmelted = melt(df, id = 'method')
+  plot_list[[i]] <- ggplot(dfmelted, aes(x=value)) + geom_density(aes(group=method, col=method, fill=method), alpha=0.3)
+}
+grid.arrange(plot_list[[1]], plot_list[[2]],plot_list[[3]], ncol=3)

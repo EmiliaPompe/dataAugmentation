@@ -98,3 +98,52 @@ for (nr in size_observation) {
 }
 
 save(list_run_times, file="./all_run_times.RData")
+
+
+index <- 15
+par(mfrow=c(4,4))
+for(index in 1:16) {
+plot(time_snapshot, log(list_run_times[[index]]$run_time_PXDA, base=10), type="l", 
+     ylim=c(0,3.5),
+     main = paste("Number of observations: ",list_run_times[[index]]$nr," - Length of beta: ", list_run_times[[index]]$size_beta,sep=""),
+     xlab = "Number of iterations", ylab = "log(run time)")
+lines(time_snapshot, log(list_run_times[[index]]$run_time_DA, base = 10), col = "red")
+}
+
+
+par(mfrow=c(4,4))
+for(index in 1:16) {
+  plot(time_snapshot, list_run_times[[index]]$run_time_PXDA, type="l", col="red",
+       main = paste("Number of observations: ",list_run_times[[index]]$nr," - Length of beta: ", list_run_times[[index]]$size_beta,sep=""),
+       xlab = "Number of iterations", ylab = "Run time (sec)")
+  lines(time_snapshot, list_run_times[[index]]$run_time_DA)
+}
+
+index <- 16
+list_run_times[[index]]$run_time_DA[length(list_run_times[[index]]$run_time_DA)]
+list_run_times[[index]]$run_time_PXDA[length(list_run_times[[index]]$run_time_PXDA)]
+list_run_times[[index]]$run_time_PXDA[length(list_run_times[[index]]$run_time_PXDA)]/list_run_times[[index]]$run_time_DA[length(list_run_times[[index]]$run_time_DA)]
+
+
+#ggplot
+plot_list <- vector("list", length = 4)
+counter <- 1
+for(index in c(1,4,13,16)) {
+  df = data.frame(iteration = time_snapshot,
+                  run_time_DA = list_run_times[[index]]$run_time_DA,
+                  run_time_PXDA = list_run_times[[index]]$run_time_PXDA)
+  colnames(df) <- c("Iterations","DA","PX-DA")
+  library(reshape)
+  library(ggplot2)
+  library(gridExtra)
+  dfmelted = melt(df, id = 'Iterations')
+  colnames(dfmelted) <- c("Iterations","Method","value")
+  plot_list[[counter]] <- ggplot(dfmelted, aes(x = Iterations, y = value, colour = Method)) + 
+    geom_line() + 
+    ylab(label="Run time (sec)") + 
+    xlab("Number of iterations") + 
+    scale_colour_manual(values=c("blue", "red")) +
+    ggtitle(paste("m = ",list_run_times[[index]]$nr,", p = ",list_run_times[[index]]$size_beta, sep = ""))
+  counter <- counter+1
+}
+grid.arrange(plot_list[[1]], plot_list[[2]],plot_list[[3]], plot_list[[4]], ncol=2)
