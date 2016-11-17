@@ -100,7 +100,7 @@ PlotACF <-function(df, lag.max = NULL,  ...){
   l <- list(...)
   
   lag_list <- dlply(df, .(method), summarize, 
-                    ACFFunction(x, method=method[1], lag.max=5))
+                    ACFFunction(x, method=method[1], lag.max=lag.max))
   lag_df <- do.call("rbind", lapply(lag_list, function(x) x[,1]))
   lag_df$lag <- as.factor(lag_df$lag)
   
@@ -111,3 +111,17 @@ PlotACF <-function(df, lag.max = NULL,  ...){
 }
 PlotACF(df, 10, ggtitle('Áutocorrelation function plot')) 
 
+
+PlotHistGif <- function(df1, df2, ...){
+  
+  require(ggplot2)
+  set.seed(13)
+  l <- list(...)
+  #p <- qplot(v,geom='density', colour='red', fill='red', alpha=0.2, binwidth = 1) +
+  # qplot(theoretical_vector, geom='density', colour = 'blue', fill = 'blue', alpha =0.2) +l
+  
+  p <- ggplot(df1, aes(x=x)) + geom_density(colour='red', fill='red', alpha=0.2) +
+    geom_density(data= df2, aes(x=x), colour = 'blue', fill = 'blue', alpha =0.2) + l
+  
+  p
+}
